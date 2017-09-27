@@ -471,7 +471,6 @@ def LoadWithR(inputs,skip):
         header=struct.header        
         sg=SubGroup()
         LabelCol=struct.groupbycolumn
-        
         if np.isnan(LabelCol):
             print('Invalid selection for grouping column.  Valid options are "first" or "last"')
             return()
@@ -483,7 +482,6 @@ def LoadWithR(inputs,skip):
         # Extract Final Column, which has the row group key     
         checkHeaders=np.loadtxt(sub,dtype=str,usecols=UseCols,delimiter=',')[0]
         LenFile=len(checkHeaders)
-        
         defaultNames=['{}'.format(i) for i in range(LenFile)]
         
         if header==0:
@@ -508,7 +506,9 @@ def LoadWithR(inputs,skip):
             
             data=np.genfromtxt(sub,names=True,usecols=UseCols,delimiter=',',case_sensitive='lower')
             lables=list(data.dtype.names)
+            #print lables
             RowGroups=np.loadtxt(sub,dtype=str,usecols=[LabelCol],delimiter=',',skiprows=1)
+            #print RowGroups
 
             
             
@@ -516,7 +516,6 @@ def LoadWithR(inputs,skip):
             # Remove the label column from the loaded data.
             del lables[LabelCol]
             data=data[lables]
-                
 
         # Catch if first column is unused lables
         if np.isnan(data[0][0]):
@@ -535,10 +534,10 @@ def LoadWithR(inputs,skip):
         DataList=[]
         for l in lables:
             DataList.append(data[l])
-        
         del data
 
         RowKey=np.unique(RowGroups)
+        #print RowKey
         SortedDataList=[]
         FinalLabelList=[]
         
@@ -937,6 +936,9 @@ def main(DataStructure,SaveBase=''):
     global hidePlot
     global title
     
+    print annotateSig
+    print runTtest
+    
     pl.close()
     nSubPlots=DataStructure.nPlots
 
@@ -963,7 +965,7 @@ def main(DataStructure,SaveBase=''):
     xm=1 
     ymax=-999999999
     ymin=9999999999
-    fig,axarr=pl.subplots(1,int(np.ceil(nSubPlots)),figsize=(fsize,5))
+    fig,axarr=pl.subplots(1,int(np.ceil(nSubPlots)),figsize=(fsize,6))
     axarr=np.reshape(axarr,-1)
     #fig.set_size_inches(fsize,4)
 
@@ -1034,7 +1036,7 @@ def main(DataStructure,SaveBase=''):
                 
 
                 st.graphics.violinplot([vplot.data],ax=x,labels=[vplot.label],positions=[ViolinPositions[vi]],show_boxplot=False,plot_opts={'cutoff':True,'cutoff_val':2,'violin_fc':vplot.color,'violin_width':(Vspace/nGroups)*1.5})
-                x.boxplot([vplot.data],notch=False,sym='cv',whis=10,positions=[ViolinPositions[vi]],widths=Vspace/nGroups)
+                x.boxplot([vplot.data],notch=False,sym='cv',whis=2,positions=[ViolinPositions[vi]],widths=Vspace/nGroups)
                 
                 VPlotlegend.append(vplot.label)
                 SPlegend.extend([vplot.color])
@@ -1055,73 +1057,78 @@ def main(DataStructure,SaveBase=''):
             #########################################
             ############ STats from HERE ---v ########
             ##########################################
-            tTestRef='Pre-Filter'
+
             
-            grpLbls=group.get_labels()
+            if runTtest==1:
             
-            for i in range(len(grpLbls)-1):
-                
-                
-                tTestRef=group.get_labels()[i]
-                nref=i
-                print group.get_labels()
-                print tTestRef
-                
-                Out,sigs=SeqStatsOnSubplot(group,nref,tTestRef,ViolinPositions,i)
-                tt=0
-                adj=.036*(ymax+(ymax-ymin)*.1)
-                nsig=sum((sigs>=1).astype(int))
-                modadj=3-nsig
-                
-                
-                
-                #####################################
-                ## SET nref here!! ##########
-                ##########################
-                
-                
-                
-                for nv,sig in enumerate(sigs[1:]):
-                  ref=tTestRef
-                  nvadj=nv+1
-                  print adj
-                  
-                  if sig>=1:
-                      print group.get_labels()
-                      nref=i#=np.where([a==ref for a in group.get_labels()])[0]
-                      print nref
-                      #nref=0
-                      violinReg=group.violinGroups[nref]
-                      p1=(ViolinPositions[nref],np.amax(violinReg.data)*.95)
-                      p2=(ViolinPositions[nvadj],np.amax(violinReg.data)*.95)
-                      #print p1
-                      #print p2
-                      if p1[0]>p2[0]:
-                          modtt=-1
-                          p2=p1
-                          p1=(ViolinPositions[nvadj],np.amax(violinReg.data)*.95)
-                      else:
-                          modtt=0
-                      
-                      x.annotate("",xy=p2,xycoords='data',xytext=p1,textcoords='data',arrowprops=dict(arrowstyle="-",connectionstyle="bar,fraction=-0.17"))
-                      
-                      if sig==1:
-                          sa='*'
-                      elif sig==2:
-                          sa='*'
-                      elif sig==3:
-                          sa='**'
-                      x.text((p1[0]+p2[0])/2,p1[1]+adj*(tt+modadj)+adj/4+.17,sa,fontsize=12,ha='center')
-                      tt=tt+1+modtt
-                      #print 'x:{}\ty:{}'.format((p1[0]+p2[0])[0]/2,p1[1]+adj*tt)
-                Out=subPlot.Title+'_Group {}'.format(nsp)+Out
-                txt='{}_{}{}grp{}stats.txt'.format(SaveBase,subPlot.Title,nsp,ng)
-                if i==0:
-                    File=open('{}_{}{}grp{}stats.txt'.format(SaveBase,subPlot.Title,nsp,ng),'w')
+                if tTestRef=='':
+                    RefList=group.get_labels()
                 else:
-                    File=open('{}_{}{}grp{}stats.txt'.format(SaveBase,subPlot.Title,nsp,ng),'a')
-                File.write(Out)
-                File.close()
+                    RefList=[tTestRef]
+                
+                for i in range(len(RefList)):
+                    
+                    
+                    tTestRef=RefList[i]
+                    nref=np.where(np.array(group.get_labels())==tTestRef)[0][0]
+                    print group.get_labels()
+                    print tTestRef
+                    
+                    Out,sigs=SeqStatsOnSubplot(group,nref,tTestRef,ViolinPositions,i)
+                    tt=0
+                    adj=.036*(ymax+(ymax-ymin)*.1)
+                    nsig=sum((sigs>=1).astype(int))
+                    modadj=3-nsig
+                    
+                    
+                    
+                    #####################################
+                    ## SET nref here!! ##########
+                    ##########################
+                    
+                    
+                    
+                    for nv,sig in enumerate(sigs[1:]):
+                      ref=tTestRef
+                      nvadj=nv+1
+                      print adj
+                      
+                      if sig>=1:
+                          print group.get_labels()
+                          nref=i#=np.where([a==ref for a in group.get_labels()])[0]
+                          print nref
+                          #nref=0
+                          violinReg=group.violinGroups[nref]
+                          p1=(ViolinPositions[nref],np.amax(violinReg.data)*.95)
+                          p2=(ViolinPositions[nvadj],np.amax(violinReg.data)*.95)
+                          #print p1
+                          #print p2
+                          if p1[0]>p2[0]:
+                              modtt=-1
+                              p2=p1
+                              p1=(ViolinPositions[nvadj],np.amax(violinReg.data)*.95)
+                          else:
+                              modtt=0
+                          if annotateSig==1:
+                            x.annotate("",xy=p2,xycoords='data',xytext=p1,textcoords='data',arrowprops=dict(arrowstyle="-",connectionstyle="bar,fraction=-0.17"))
+                            
+                            if sig==1:
+                                sa='*'
+                            elif sig==2:
+                                sa='*'
+                            elif sig==3:
+                                sa='**'
+                            x.text((p1[0]+p2[0])/2,p1[1]+adj*(tt+modadj)+adj/4+.17,sa,fontsize=12,ha='center')
+                          tt=tt+1+modtt
+                          #print 'x:{}\ty:{}'.format((p1[0]+p2[0])[0]/2,p1[1]+adj*tt)
+                    Out=subPlot.Title+'_Group {}'.format(nsp)+Out
+                    txt='{}_{}{}grp{}stats.txt'.format(SaveBase,subPlot.Title,nsp,ng)
+                    if i==0:
+                        File=open('{}_{}{}grp{}stats.txt'.format(SaveBase,subPlot.Title,nsp,ng),'w')
+                    else:
+                        File=open('{}_{}{}grp{}stats.txt'.format(SaveBase,subPlot.Title,nsp,ng),'a')
+                    File.write(Out)
+                    File.close()
   
             #########################################
             ############ to HERE ---^ ########
@@ -1205,7 +1212,7 @@ def main(DataStructure,SaveBase=''):
     #   a.set_ylim([ymin-np.abs(ymax-ymin)*.1,ymax+(ymax-ymin)*.1])
     #   a.yaxis.grid(True)
         
-    fig.subplots_adjust(left=0.1,bottom=0.14,right=0.97,top=0.94,wspace=.13,hspace=0.13)
+    fig.subplots_adjust(left=0.1,bottom=0.22,right=0.97,top=0.94,wspace=.13,hspace=0.13)
     #fig.set_size_inches((fsize,3.5))    
     
     
@@ -1239,7 +1246,7 @@ skipFirstCol=0
 tTestRef=''
 SaveBase=''
 firstRowLabel=0
-hidePlot=1
+hidePlot=0
 OverrideLabels=[]
 legend=1
 title=''
@@ -1352,10 +1359,13 @@ if __name__=="__main__":
                     
                 elif i=='-t':
                     runTtest=1
-                    tTestRef=arg[0]
-                    # if not (any([t==ValIn for t in inputvalues])):
-                    #     tTestRef=ref
-                    del arg[0]
+                    if len(arg)>0:
+                        
+                        if (any([t==arg[0] for t in inputvalues])):
+                            tTestRef=''
+                        else:
+                            tTestRef=arg[0]
+                            del arg[0]
 
                 elif i=='-p':
                     annotateSig=1
